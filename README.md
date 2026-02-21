@@ -1,4 +1,4 @@
-# Hi, I'm Grani Kumar 👋
+# Hi, I'm Grani 👋
 
 ## Enterprise AI Integration Architect
 
