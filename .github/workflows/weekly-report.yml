@@ -1,0 +1,62 @@
+name: Weekly Hyderabad Real Estate Report
+
+on:
+  schedule:
+    - cron: '30 3 * * 1'   # Every Monday 9:00 AM IST (03:30 UTC)
+  workflow_dispatch:         # Also allow manual run from GitHub UI
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write        # Needed to push snapshot + report back to repo
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Install Python dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Write .env
+        run: |
+          cat > backend/.env <<EOF
+          SMTP_HOST=smtp.gmail.com
+          SMTP_PORT=587
+          SMTP_USER=${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+          REPORT_FROM=${{ secrets.SMTP_USER }}
+          REPORT_TO=${{ secrets.REPORT_TO }}
+          EOF
+
+      - name: Generate report and send email
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python3 generate_report.py --email "${{ secrets.REPORT_TO }}"
+
+      - name: Commit report and snapshot to repo
+        run: |
+          git config user.name  "Real Estate Bot"
+          git config user.email "${{ secrets.SMTP_USER }}"
+          git add reports/
+          git diff --staged --quiet || git commit -m "Weekly report $(date '+%Y-%m-%d')"
+          git push
