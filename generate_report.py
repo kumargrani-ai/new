@@ -453,8 +453,11 @@ def send_email(html_path: Path, to_email: str, ts: datetime):
     msg.attach(part)
 
     try:
-        print(f"\n  Sending email to {to_email} via {smtp_host}:{smtp_port}...")
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
+        import socket
+        # Force IPv4 — containers often block IPv6 outbound
+        ipv4 = socket.getaddrinfo(smtp_host, smtp_port, socket.AF_INET)[0][4][0]
+        print(f"\n  Sending email to {to_email} via {smtp_host} ({ipv4}):{smtp_port}...")
+        with smtplib.SMTP(ipv4, smtp_port) as server:
             server.ehlo()
             server.starttls()
             server.login(smtp_user, smtp_pass)
