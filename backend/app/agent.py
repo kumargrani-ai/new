@@ -83,24 +83,61 @@ def _extract_json(text: str) -> Any:
     return None
 
 
+NEW_LAUNCHES_PROMPT = """You are a Hyderabad real estate market analyst writing a market intelligence brief.
+Based on your knowledge of Hyderabad's real estate market, describe new residential projects
+launched or under construction by major builders as of mid-2026.
+
+NOTE: This is illustrative market intelligence data — do NOT include RERA numbers or phone numbers.
+
+Return ONLY a raw JSON array (no markdown, no explanation):
+[{
+  "builder": "MyHome Group",
+  "project_name": "MyHome Tridasa",
+  "locality": "Kokapet",
+  "configuration": "3BHK, 4BHK",
+  "size_range": "2100 - 3800 sqft",
+  "price_range": "Rs 1.8 Cr - Rs 3.5 Cr",
+  "price_per_sqft": 9200,
+  "launch_date": "Q1 2026",
+  "possession_date": "Dec 2028",
+  "status": "New Launch",
+  "highlights": "IGBC Gold certified, sky deck, 500m from Financial District metro"
+}]
+
+Include 15+ representative projects from:
+MyHome Group, Aparna Constructions, Ramky Group, Prestige Group, Sobha Limited,
+Brigade Group, Godrej Properties, Purva Group, Mahindra Lifespaces, Lodha Group,
+Phoenix Group, Incor, Vertex Homes, Aliens Group
+
+Focus areas: Kokapet, Nallagandla, Bachupally, Financial District, Gachibowli,
+Kondapur, Kompally, Shamshabad corridor, Tellapur, Mokila
+
+Status options: "New Launch", "Under Construction", "Ready to Move", "Pre-Launch"
+
+Return ONLY the JSON array."""
+
+
 async def run_agent() -> Dict[str, Any]:
     """
-    Run two Claude CLI calls in parallel:
-      1. Get locality price data (JSON array)
-      2. Get market insight + summary (JSON object)
-    Merge results into one dict matching the DB schema.
+    Run three Claude CLI calls in parallel:
+      1. Locality price data (JSON array)
+      2. Market insight + summary (JSON object)
+      3. New launches from corporate builders (JSON array)
     """
     logger.info("Starting Claude Code agent...")
     loop = asyncio.get_event_loop()
 
-    # Run both prompts concurrently
-    price_future = loop.run_in_executor(None, _run_claude, PRICE_PROMPT, 120)
+    price_future   = loop.run_in_executor(None, _run_claude, PRICE_PROMPT, 120)
     insight_future = loop.run_in_executor(None, _run_claude, INSIGHT_PROMPT, 120)
+    launches_future = loop.run_in_executor(None, _run_claude, NEW_LAUNCHES_PROMPT, 120)
 
-    price_output, insight_output = await asyncio.gather(price_future, insight_future)
+    price_output, insight_output, launches_output = await asyncio.gather(
+        price_future, insight_future, launches_future
+    )
 
-    localities = _extract_json(price_output)
-    insight_data = _extract_json(insight_output)
+    localities    = _extract_json(price_output)
+    insight_data  = _extract_json(insight_output)
+    new_launches  = _extract_json(launches_output)
 
     if not isinstance(localities, list):
         logger.error("Localities response was not a list")
@@ -110,7 +147,15 @@ async def run_agent() -> Dict[str, Any]:
         logger.error("Insight response was not a dict")
         insight_data = {}
 
-    logger.info(f"Agent got {len(localities)} localities, insight={'yes' if insight_data else 'no'}")
+    if not isinstance(new_launches, list):
+        logger.warning("New launches response was not a list, using empty")
+        new_launches = []
+
+    logger.info(
+        f"Agent: {len(localities)} localities, "
+        f"insight={'yes' if insight_data else 'no'}, "
+        f"{len(new_launches)} new launches"
+    )
 
     return {
         "localities": localities,
@@ -121,4 +166,5 @@ async def run_agent() -> Dict[str, Any]:
             "hottest_locality": "",
             "yoy_change_pct": 0,
         }),
+        "new_launches": new_launches,
     }

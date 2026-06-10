@@ -106,16 +106,16 @@ _LOCALITIES = [
 
 def _seed_listings(source: str) -> List[ScrapedListing]:
     seed = [
-        ("3 BHK New Launch - Kokapet", "Kokapet", 145.0, 2000, 3),
-        ("2 BHK Ready to Move - Gachibowli", "Gachibowli", 75.0, 1200, 2),
-        ("4 BHK Luxury Villa - Jubilee Hills", "Jubilee Hills", 420.0, 5000, 4),
-        ("1 BHK - Miyapur", "Miyapur", 30.0, 620, 1),
-        ("3 BHK - Kondapur", "Kondapur", 95.0, 1600, 3),
-        ("Commercial Space - Hitech City", "Hitech City", 180.0, 1500, None),
-        ("2 BHK - Nallagandla", "Nallagandla", 58.0, 1050, 2),
-        ("Plot - Kompally", "Kompally", 35.0, 2000, None),
-        ("3 BHK Independent House - Kukatpally", "Kukatpally", 88.0, 1700, 3),
-        ("2 BHK - Manikonda", "Manikonda", 50.0, 1050, 2),
+        ("3 BHK New Launch - Kokapet",          "Kokapet",      145.0, 2000, 3,    "09 Jun 2026", "98486 19283"),
+        ("2 BHK Ready to Move - Gachibowli",    "Gachibowli",   75.0,  1200, 2,    "07 Jun 2026", "90007 28374"),
+        ("4 BHK Luxury Villa - Jubilee Hills",  "Jubilee Hills",420.0, 5000, 4,    "02 Jun 2026", "98487 37465"),
+        ("1 BHK - Miyapur",                     "Miyapur",      30.0,  620,  1,    "08 Jun 2026", "70758 46556"),
+        ("3 BHK - Kondapur",                    "Kondapur",     95.0,  1600, 3,    "05 Jun 2026", "98488 55647"),
+        ("Commercial Space - Hitech City",      "Hitech City",  180.0, 1500, None, "04 Jun 2026", "98489 64738"),
+        ("2 BHK - Nallagandla",                 "Nallagandla",  58.0,  1050, 2,    "06 Jun 2026", "90008 73829"),
+        ("Plot - Kompally",                     "Kompally",     35.0,  2000, None, "03 Jun 2026", "70759 82910"),
+        ("3 BHK Independent House - Kukatpally","Kukatpally",   88.0,  1700, 3,    "01 Jun 2026", "98490 91001"),
+        ("2 BHK - Manikonda",                   "Manikonda",    50.0,  1050, 2,    "10 Jun 2026", "98491 10192"),
     ]
     return [
         ScrapedListing(
@@ -128,6 +128,8 @@ def _seed_listings(source: str) -> List[ScrapedListing]:
             property_type=_detect_type(t),
             source=source,
             source_url="",
+            posted_date=posted,
+            contact_number=contact,
         )
-        for i, (t, loc, price, area, beds) in enumerate(seed)
+        for i, (t, loc, price, area, beds, posted, contact) in enumerate(seed)
     ]

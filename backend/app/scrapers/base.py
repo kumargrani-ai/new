@@ -36,6 +36,8 @@ class ScrapedListing:
     bathrooms: Optional[int] = None
     furnishing: str = ""
     is_new_launch: bool = False
+    posted_date: str = ""       # e.g. "08 Jun 2026"
+    contact_number: str = ""    # advertiser contact if available
 
     @property
     def price_per_sqft(self) -> float:

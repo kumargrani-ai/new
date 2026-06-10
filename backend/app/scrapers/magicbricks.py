@@ -114,16 +114,16 @@ def _parse_area(text: str) -> float:
 def _seed_listings(source: str) -> List[ScrapedListing]:
     """Realistic seed data for Hyderabad when live scraping is blocked."""
     seed = [
-        ("3 BHK Apartment in Gachibowli", "Gachibowli", 95.0, 1650, 3),
-        ("2 BHK Flat in Hitech City", "Hitech City", 72.5, 1100, 2),
-        ("4 BHK Villa in Jubilee Hills", "Jubilee Hills", 285.0, 3200, 4),
-        ("2 BHK Apartment in Kondapur", "Kondapur", 58.0, 1050, 2),
-        ("3 BHK Apartment in Banjara Hills", "Banjara Hills", 145.0, 1800, 3),
-        ("1 BHK Studio in Madhapur", "Madhapur", 38.0, 650, 1),
-        ("3 BHK Independent House in Kukatpally", "Kukatpally", 88.0, 1400, 3),
-        ("2 BHK Apartment in Miyapur", "Miyapur", 45.0, 1000, 2),
-        ("3 BHK Luxury Flat in Nallagandla", "Nallagandla", 115.0, 1750, 3),
-        ("2 BHK Apartment in Manikonda", "Manikonda", 52.0, 1100, 2),
+        ("3 BHK Apartment in Gachibowli",           "Gachibowli",   95.0,  1650, 3, "02 Jun 2026", "98480 12345"),
+        ("2 BHK Flat in Hitech City",               "Hitech City",  72.5,  1100, 2, "05 Jun 2026", "90001 23456"),
+        ("4 BHK Villa in Jubilee Hills",            "Jubilee Hills",285.0, 3200, 4, "01 Jun 2026", "98490 34567"),
+        ("2 BHK Apartment in Kondapur",             "Kondapur",     58.0,  1050, 2, "07 Jun 2026", "70752 45678"),
+        ("3 BHK Apartment in Banjara Hills",        "Banjara Hills",145.0, 1800, 3, "03 Jun 2026", "98491 56789"),
+        ("1 BHK Studio in Madhapur",                "Madhapur",     38.0,  650,  1, "08 Jun 2026", "98492 67890"),
+        ("3 BHK Independent House in Kukatpally",   "Kukatpally",   88.0,  1400, 3, "04 Jun 2026", "70753 78901"),
+        ("2 BHK Apartment in Miyapur",              "Miyapur",      45.0,  1000, 2, "06 Jun 2026", "98493 89012"),
+        ("3 BHK Luxury Flat in Nallagandla",        "Nallagandla",  115.0, 1750, 3, "09 Jun 2026", "90002 90123"),
+        ("2 BHK Apartment in Manikonda",            "Manikonda",    52.0,  1100, 2, "10 Jun 2026", "98494 01234"),
     ]
     return [
         ScrapedListing(
@@ -136,6 +136,8 @@ def _seed_listings(source: str) -> List[ScrapedListing]:
             property_type="Apartment" if "Villa" not in title and "House" not in title else ("Villa" if "Villa" in title else "Independent House"),
             source=source,
             source_url="",
+            posted_date=posted,
+            contact_number=contact,
         )
-        for i, (title, loc, price, area, beds) in enumerate(seed)
+        for i, (title, loc, price, area, beds, posted, contact) in enumerate(seed)
     ]

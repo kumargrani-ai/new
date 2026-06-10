@@ -112,16 +112,16 @@ _LOCALITIES = [
 
 def _seed_listings(source: str) -> List[ScrapedListing]:
     seed = [
-        ("2 BHK Apartment - Gachibowli", "Gachibowli", 68.0, 1150, 2),
-        ("3 BHK Flat - Kondapur", "Kondapur", 89.0, 1500, 3),
-        ("Plot in Kompally", "Kompally", 45.0, 2400, None),
-        ("2 BHK Independent House - Kukatpally", "Kukatpally", 55.0, 1200, 2),
-        ("4 BHK Villa - Banjara Hills", "Banjara Hills", 320.0, 4000, 4),
-        ("1 BHK Apartment - Miyapur", "Miyapur", 32.0, 600, 1),
-        ("3 BHK Premium - Kokapet", "Kokapet", 125.0, 1800, 3),
-        ("2 BHK Flat - LB Nagar", "LB Nagar", 42.0, 950, 2),
-        ("3 BHK Hitech City", "Hitech City", 105.0, 1700, 3),
-        ("2 BHK Manikonda", "Manikonda", 48.0, 1050, 2),
+        ("2 BHK Apartment - Gachibowli",        "Gachibowli",   68.0,  1150, 2,    "03 Jun 2026", "98480 11111"),
+        ("3 BHK Flat - Kondapur",               "Kondapur",     89.0,  1500, 3,    "05 Jun 2026", "90000 22222"),
+        ("Plot in Kompally",                    "Kompally",     45.0,  2400, None, "01 Jun 2026", "98481 33333"),
+        ("2 BHK Independent House - Kukatpally","Kukatpally",   55.0,  1200, 2,    "07 Jun 2026", "70750 44444"),
+        ("4 BHK Villa - Banjara Hills",         "Banjara Hills",320.0, 4000, 4,    "02 Jun 2026", "98482 55555"),
+        ("1 BHK Apartment - Miyapur",           "Miyapur",      32.0,  600,  1,    "08 Jun 2026", "98483 66666"),
+        ("3 BHK Premium - Kokapet",             "Kokapet",      125.0, 1800, 3,    "09 Jun 2026", "90001 77777"),
+        ("2 BHK Flat - LB Nagar",               "LB Nagar",     42.0,  950,  2,    "06 Jun 2026", "98484 88888"),
+        ("3 BHK Hitech City",                   "Hitech City",  105.0, 1700, 3,    "04 Jun 2026", "70751 99999"),
+        ("2 BHK Manikonda",                     "Manikonda",    48.0,  1050, 2,    "10 Jun 2026", "98485 00000"),
     ]
     return [
         ScrapedListing(
@@ -134,6 +134,8 @@ def _seed_listings(source: str) -> List[ScrapedListing]:
             property_type=_detect_type(t),
             source=source,
             source_url="",
+            posted_date=posted,
+            contact_number=contact,
         )
-        for i, (t, loc, price, area, beds) in enumerate(seed)
+        for i, (t, loc, price, area, beds, posted, contact) in enumerate(seed)
     ]

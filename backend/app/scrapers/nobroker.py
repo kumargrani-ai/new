@@ -72,16 +72,16 @@ _LOCALITIES = [
 
 def _seed_listings(source: str) -> List[ScrapedListing]:
     seed = [
-        ("2 BHK Semi-Furnished - Kondapur", "Kondapur", 61.0, 1100, 2, "Semi-Furnished"),
-        ("3 BHK Furnished - Gachibowli", "Gachibowli", 98.0, 1700, 3, "Furnished"),
-        ("1 BHK - Miyapur", "Miyapur", 28.0, 580, 1, "Unfurnished"),
-        ("3 BHK - Nallagandla", "Nallagandla", 82.0, 1450, 3, "Semi-Furnished"),
-        ("2 BHK - Bachupally", "Bachupally", 40.0, 950, 2, "Unfurnished"),
-        ("4 BHK Villa - Manikonda", "Manikonda", 155.0, 2800, 4, "Furnished"),
-        ("2 BHK - Kukatpally", "Kukatpally", 52.0, 1100, 2, "Semi-Furnished"),
-        ("3 BHK Luxury - Kokapet", "Kokapet", 118.0, 1800, 3, "Furnished"),
-        ("2 BHK - Kompally", "Kompally", 38.0, 900, 2, "Unfurnished"),
-        ("Plot - Shamshabad", "Shamshabad", 22.0, 1200, None, ""),
+        ("2 BHK Semi-Furnished - Kondapur", "Kondapur",  61.0,  1100, 2,    "Semi-Furnished",  "05 Jun 2026", "98480 13579"),
+        ("3 BHK Furnished - Gachibowli",    "Gachibowli",98.0,  1700, 3,    "Furnished",       "03 Jun 2026", "90005 24680"),
+        ("1 BHK - Miyapur",                 "Miyapur",   28.0,  580,  1,    "Unfurnished",     "08 Jun 2026", "98481 35791"),
+        ("3 BHK - Nallagandla",             "Nallagandla",82.0, 1450, 3,    "Semi-Furnished",  "07 Jun 2026", "70756 46802"),
+        ("2 BHK - Bachupally",              "Bachupally",40.0,  950,  2,    "Unfurnished",     "04 Jun 2026", "98482 57913"),
+        ("4 BHK Villa - Manikonda",         "Manikonda", 155.0, 2800, 4,    "Furnished",       "01 Jun 2026", "98483 68024"),
+        ("2 BHK - Kukatpally",              "Kukatpally",52.0,  1100, 2,    "Semi-Furnished",  "06 Jun 2026", "90006 79135"),
+        ("3 BHK Luxury - Kokapet",          "Kokapet",   118.0, 1800, 3,    "Furnished",       "09 Jun 2026", "70757 80246"),
+        ("2 BHK - Kompally",                "Kompally",  38.0,  900,  2,    "Unfurnished",     "10 Jun 2026", "98484 91357"),
+        ("Plot - Shamshabad",               "Shamshabad",22.0,  1200, None, "",                "02 Jun 2026", "98485 02468"),
     ]
     return [
         ScrapedListing(
@@ -95,6 +95,8 @@ def _seed_listings(source: str) -> List[ScrapedListing]:
             source=source,
             source_url="",
             furnishing=furnishing,
+            posted_date=posted,
+            contact_number=contact,
         )
-        for i, (t, loc, price, area, beds, furnishing) in enumerate(seed)
+        for i, (t, loc, price, area, beds, furnishing, posted, contact) in enumerate(seed)
     ]

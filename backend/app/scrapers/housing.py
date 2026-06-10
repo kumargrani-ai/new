@@ -104,16 +104,16 @@ _LOCALITIES = [
 
 def _seed_listings(source: str) -> List[ScrapedListing]:
     seed = [
-        ("3 BHK Premium Apartment - Kokapet", "Kokapet", 138.0, 1900, 3),
-        ("2 BHK Flat - Nallagandla", "Nallagandla", 62.0, 1100, 2),
-        ("Independent House - Bachupally", "Bachupally", 75.0, 1600, 3),
-        ("2 BHK Apartment - Uppal", "Uppal", 38.0, 900, 2),
-        ("3 BHK Villa - Jubilee Hills", "Jubilee Hills", 245.0, 2800, 3),
-        ("Studio Apartment - Ameerpet", "Ameerpet", 28.5, 550, 1),
-        ("4 BHK Penthouse - Banjara Hills", "Banjara Hills", 380.0, 4500, 4),
-        ("2 BHK - Attapur", "Attapur", 44.0, 980, 2),
-        ("3 BHK - Kondapur", "Kondapur", 92.0, 1550, 3),
-        ("Plot - Shamshabad", "Shamshabad", 25.0, 1800, None),
+        ("3 BHK Premium Apartment - Kokapet",  "Kokapet",      138.0, 1900, 3,    "09 Jun 2026", "98486 12121"),
+        ("2 BHK Flat - Nallagandla",           "Nallagandla",  62.0,  1100, 2,    "07 Jun 2026", "90003 23232"),
+        ("Independent House - Bachupally",     "Bachupally",   75.0,  1600, 3,    "04 Jun 2026", "98487 34343"),
+        ("2 BHK Apartment - Uppal",            "Uppal",        38.0,  900,  2,    "06 Jun 2026", "70754 45454"),
+        ("3 BHK Villa - Jubilee Hills",        "Jubilee Hills",245.0, 2800, 3,    "02 Jun 2026", "98488 56565"),
+        ("Studio Apartment - Ameerpet",        "Ameerpet",     28.5,  550,  1,    "08 Jun 2026", "98489 67676"),
+        ("4 BHK Penthouse - Banjara Hills",    "Banjara Hills",380.0, 4500, 4,    "01 Jun 2026", "90004 78787"),
+        ("2 BHK - Attapur",                    "Attapur",      44.0,  980,  2,    "10 Jun 2026", "70755 89898"),
+        ("3 BHK - Kondapur",                   "Kondapur",     92.0,  1550, 3,    "05 Jun 2026", "98490 90909"),
+        ("Plot - Shamshabad",                  "Shamshabad",   25.0,  1800, None, "03 Jun 2026", "98491 01010"),
     ]
     return [
         ScrapedListing(
@@ -126,6 +126,8 @@ def _seed_listings(source: str) -> List[ScrapedListing]:
             property_type=_detect_type(t),
             source=source,
             source_url="",
+            posted_date=posted,
+            contact_number=contact,
         )
-        for i, (t, loc, price, area, beds) in enumerate(seed)
+        for i, (t, loc, price, area, beds, posted, contact) in enumerate(seed)
     ]
