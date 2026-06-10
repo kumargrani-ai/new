@@ -26,7 +26,7 @@ export function PriceTrends() {
   }
 
   // Pivot: month → { month, [locality]: price }
-  const monthMap: Record<string, Record<string, number>> = {};
+  const monthMap: Record<string, Record<string, number | string>> = {};
   (trends || []).forEach(({ month, locality, avg_price_per_sqft }) => {
     if (!monthMap[month]) monthMap[month] = { month };
     monthMap[month][locality] = avg_price_per_sqft;
