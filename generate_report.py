@@ -4,6 +4,10 @@ Hyderabad Real Estate Report Generator
 Usage:
   python3 generate_report.py                          # generate HTML only
   python3 generate_report.py --email me@example.com  # generate + email
+
+Deduplication: saves reports/snapshot.json after each run.
+Next run compares against it — only NEW listings, price changes,
+and new launches are highlighted. Nothing repeats.
 """
 import argparse
 import asyncio
@@ -50,6 +54,87 @@ BUILDER_LOGOS = {
     "Aliens Group":         "🚀",
 }
 
+SNAPSHOT_FILE = Path(__file__).parent / "reports" / "snapshot.json"
+
+
+# ── Snapshot (deduplication) ─────────────────────────────────────────────────
+
+def load_snapshot() -> dict:
+    """Load previous run's data. Returns empty snapshot if first run."""
+    if SNAPSHOT_FILE.exists():
+        try:
+            return json.loads(SNAPSHOT_FILE.read_text())
+        except Exception:
+            pass
+    return {
+        "run_date": None,
+        "locality_prices": {},
+        "listing_ids": [],
+        "launch_names": [],
+    }
+
+
+def save_snapshot(localities: list, listings: list, launches: list, ts: datetime):
+    """Persist current run data so next run can diff against it."""
+    SNAPSHOT_FILE.parent.mkdir(exist_ok=True)
+    snapshot = {
+        "run_date": ts.strftime("%Y-%m-%d"),
+        "run_timestamp": ts.isoformat(),
+        "locality_prices": {
+            l["name"]: l.get("avg_price_per_sqft", 0) for l in localities
+        },
+        "listing_ids": [
+            f"{lst.get('source','')}__{lst.get('title','')}_{lst.get('locality','')}"
+            for lst in listings
+        ],
+        "launch_names": [p.get("project_name", "") for p in launches],
+    }
+    SNAPSHOT_FILE.write_text(json.dumps(snapshot, indent=2))
+
+
+def diff_with_snapshot(localities: list, listings: list, launches: list, snap: dict) -> dict:
+    """
+    Compare current data against last snapshot.
+    Returns diff metadata used to badge new/changed items in the report.
+    """
+    prev_prices  = snap.get("locality_prices", {})
+    prev_ids     = set(snap.get("listing_ids", []))
+    prev_launches = set(snap.get("launch_names", []))
+
+    # Locality price changes
+    price_changes = {}
+    for loc in localities:
+        name = loc["name"]
+        curr = loc.get("avg_price_per_sqft", 0)
+        prev = prev_prices.get(name)
+        if prev and prev != curr:
+            price_changes[name] = {"prev": prev, "curr": curr, "delta": curr - prev}
+
+    # New listings (not seen in last run)
+    new_listing_keys = set()
+    for lst in listings:
+        key = f"{lst.get('source','')}__{lst.get('title','')}_{lst.get('locality','')}"
+        if key not in prev_ids:
+            new_listing_keys.add(key)
+
+    # New launches (not seen in last run)
+    new_launch_names = {
+        p.get("project_name", "") for p in launches
+        if p.get("project_name", "") not in prev_launches
+    }
+
+    is_first_run = snap.get("run_date") is None
+    return {
+        "is_first_run":      is_first_run,
+        "prev_run_date":     snap.get("run_date"),
+        "price_changes":     price_changes,
+        "new_listing_keys":  new_listing_keys,
+        "new_launch_names":  new_launch_names,
+        "new_listings_count":  len(new_listing_keys),
+        "changed_prices_count": len(price_changes),
+        "new_launches_count":  len(new_launch_names),
+    }
+
 
 # ── Data collection ──────────────────────────────────────────────────────────
 
@@ -88,13 +173,40 @@ async def collect_data():
 
 # ── HTML builder ─────────────────────────────────────────────────────────────
 
-def build_html(agent_data: dict, listings: list, scraper_status: list, ts: datetime) -> str:
+def build_html(agent_data: dict, listings: list, scraper_status: list, ts: datetime, diff: dict | None = None) -> str:
     localities    = sorted(agent_data.get("localities", []),
                            key=lambda x: x.get("avg_price_per_sqft", 0), reverse=True)
     summary       = agent_data.get("market_summary", {})
     insight       = agent_data.get("market_insight", "No analysis available.")
     new_launches  = agent_data.get("new_launches", [])
     ts_display    = ts.strftime("%d %B %Y, %I:%M %p")
+    diff          = diff or {}
+    price_changes     = diff.get("price_changes", {})
+    new_listing_keys  = diff.get("new_listing_keys", set())
+    new_launch_names  = diff.get("new_launch_names", set())
+    is_first_run      = diff.get("is_first_run", True)
+    prev_run_date     = diff.get("prev_run_date")
+
+    # ── Weekly diff summary banner ────────────────────────────────────────────
+    if is_first_run:
+        diff_banner = ""
+    else:
+        nl  = diff.get("new_listings_count", 0)
+        pc  = diff.get("changed_prices_count", 0)
+        nlc = diff.get("new_launches_count", 0)
+        diff_banner = f"""
+        <div class="bg-amber-50 border border-amber-200 rounded-2xl px-6 py-4 flex flex-wrap gap-6 items-center">
+          <div class="flex items-center gap-2">
+            <span class="text-2xl">📅</span>
+            <div><p class="text-xs text-amber-600 font-medium uppercase tracking-wide">Compared to last report</p>
+            <p class="text-sm font-bold text-amber-900">{prev_run_date}</p></div>
+          </div>
+          <div class="flex flex-wrap gap-4 text-sm">
+            <span class="flex items-center gap-1.5 bg-green-100 text-green-800 px-3 py-1.5 rounded-full font-semibold">🆕 {nl} new listings</span>
+            <span class="flex items-center gap-1.5 bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full font-semibold">💹 {pc} price changes</span>
+            <span class="flex items-center gap-1.5 bg-purple-100 text-purple-800 px-3 py-1.5 rounded-full font-semibold">🚀 {nlc} new launches</span>
+          </div>
+        </div>"""
 
     # ── Charts ────────────────────────────────────────────────────────────────
     chart_labels  = json.dumps([l["name"] for l in localities])
@@ -134,13 +246,15 @@ def build_html(agent_data: dict, listings: list, scraper_status: list, ts: datet
         status   = proj.get("status", "New Launch")
         bg, tc, bc = STATUS_COLORS.get(status, ("bg-gray-100", "text-gray-800", "border-gray-300"))
         icon     = BUILDER_LOGOS.get(proj.get("builder", ""), "🏢")
+        is_new_launch = proj.get("project_name", "") in new_launch_names
+        new_badge = '<span class="ml-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-bold align-middle">🔔 NEW</span>' if is_new_launch else ""
         launch_cards += f"""
         <div class="bg-white rounded-2xl border {bc} shadow-sm overflow-hidden flex flex-col">
           <div class="px-4 pt-4 pb-3 flex items-start gap-3">
             <span class="text-3xl">{icon}</span>
             <div class="flex-1 min-w-0">
               <p class="text-xs text-gray-400 font-medium uppercase tracking-wide">{proj.get('builder','')}</p>
-              <h3 class="font-bold text-gray-900 text-base leading-tight">{proj.get('project_name','')}</h3>
+              <h3 class="font-bold text-gray-900 text-base leading-tight">{proj.get('project_name','')}{new_badge}</h3>
               <p class="text-sm text-indigo-600 font-medium mt-0.5">📍 {proj.get('locality','')}</p>
             </div>
             <span class="shrink-0 px-2 py-1 rounded-full text-xs font-bold {bg} {tc} border {bc}">{status}</span>
@@ -176,10 +290,18 @@ def build_html(agent_data: dict, listings: list, scraper_status: list, ts: datet
         bhk3  = f"Rs{loc['avg_price_3bhk_lakhs']:.0f}L" if loc.get("avg_price_3bhk_lakhs") else "—"
         lo    = f"Rs{loc['min_price_per_sqft']:,.0f}" if loc.get("min_price_per_sqft") else "—"
         hi    = f"Rs{loc['max_price_per_sqft']:,.0f}" if loc.get("max_price_per_sqft") else "—"
+        # Week-on-week price change badge
+        chg = price_changes.get(loc["name"])
+        if chg:
+            arrow  = "↑" if chg["delta"] > 0 else "↓"
+            chg_cls = "text-green-600" if chg["delta"] > 0 else "text-red-500"
+            chg_tag = f'<span class="{chg_cls} text-xs ml-1 font-bold">{arrow} Rs{abs(chg["delta"]):,.0f} wk</span>'
+        else:
+            chg_tag = ""
         locality_rows += f"""
         <tr class="border-b border-gray-50 hover:bg-indigo-50/30 transition-colors">
           <td class="py-3 px-4 font-semibold text-gray-900 text-sm">{loc['name']}</td>
-          <td class="py-3 px-4 text-right font-bold text-indigo-700">Rs {loc.get('avg_price_per_sqft',0):,.0f}</td>
+          <td class="py-3 px-4 text-right font-bold text-indigo-700">Rs {loc.get('avg_price_per_sqft',0):,.0f}{chg_tag}</td>
           <td class="py-3 px-4 text-right text-xs text-gray-500">{lo} – {hi}</td>
           <td class="py-3 px-4 text-right text-sm {yc}">{yoy:+.1f}%</td>
           <td class="py-3 px-4 text-center text-sm text-gray-700">{bhk2}</td>
@@ -209,10 +331,14 @@ def build_html(agent_data: dict, listings: list, scraper_status: list, ts: datet
             f'class="text-indigo-600 hover:underline whitespace-nowrap">{contact}</a>'
             if contact != "—" else '<span class="text-gray-300">—</span>'
         )
+        lst_key = f"{lst.get('source','')}__{lst.get('title','')}_{lst.get('locality','')}"
+        is_new_listing = lst_key in new_listing_keys
+        row_bg = "bg-green-50/40" if is_new_listing else ""
+        new_tag = ' <span class="inline-block bg-green-500 text-white text-xs px-1.5 py-0.5 rounded font-bold leading-none">🆕</span>' if is_new_listing else ""
         listing_rows += f"""
-        <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+        <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors {row_bg}">
           <td class="py-2.5 px-3 text-xs text-gray-400 whitespace-nowrap">{posted}</td>
-          <td class="py-2.5 px-3 text-sm text-gray-800 max-w-xs truncate">{lst.get('title','')[:50]}</td>
+          <td class="py-2.5 px-3 text-sm text-gray-800 max-w-xs truncate">{lst.get('title','')[:50]}{new_tag}</td>
           <td class="py-2.5 px-3 text-sm text-gray-600 whitespace-nowrap">{lst.get('locality','')}</td>
           <td class="py-2.5 px-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap">{price_str}</td>
           <td class="py-2.5 px-3 text-sm text-gray-600 text-right whitespace-nowrap">{lst.get('area_sqft',0):,.0f} sqft</td>
@@ -289,6 +415,8 @@ def build_html(agent_data: dict, listings: list, scraper_status: list, ts: datet
         <p class="text-xs text-gray-400 mt-1">projects tracked</p>
       </div>
     </div>
+
+    {diff_banner}
 
     <!-- AI Market Insights -->
     <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100 p-6">
@@ -480,10 +608,23 @@ async def main(email_to: str | None = None):
     print(f"  {ts.strftime('%d %B %Y, %I:%M %p')}")
     print(f"{'='*60}\n")
 
+    snap = load_snapshot()
     agent_data, listings, scraper_status = await collect_data()
 
+    localities_data = agent_data.get("localities", [])
+    launches        = agent_data.get("new_launches", [])
+    diff            = diff_with_snapshot(localities_data, listings, launches, snap)
+
+    if diff["is_first_run"]:
+        print("  First run — no previous snapshot to compare against.")
+    else:
+        print(f"  Diff vs {diff['prev_run_date']}: "
+              f"{diff['new_listings_count']} new listings, "
+              f"{diff['changed_prices_count']} price changes, "
+              f"{diff['new_launches_count']} new launches")
+
     print("  Building HTML report...")
-    html = build_html(agent_data, listings, scraper_status, ts)
+    html = build_html(agent_data, listings, scraper_status, ts, diff=diff)
 
     out_dir  = Path(__file__).parent / "reports"
     out_dir.mkdir(exist_ok=True)
@@ -491,7 +632,9 @@ async def main(email_to: str | None = None):
     out_file.write_text(html, encoding="utf-8")
     (out_dir / "latest.html").write_text(html, encoding="utf-8")
 
-    launches  = agent_data.get("new_launches", [])
+    save_snapshot(localities_data, listings, launches, ts)
+    print("  Snapshot saved.")
+
     summary   = agent_data.get("market_summary", {})
     size_kb   = out_file.stat().st_size / 1024
 
