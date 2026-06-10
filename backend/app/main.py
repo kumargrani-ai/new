@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from .agent import RealEstateAgent
+from .agent import run_agent as _agent_run
 from .database import get_db, init_db
 from .models import LocalityPrice, MarketInsight, PriceTrend, PropertyListing, ScraperRun
 from .scrapers.magicbricks import MagicBricksScraper
@@ -252,18 +252,12 @@ def _seed_trend_data(db: Session):
 
 
 async def run_agent(db: Session):
-    """Run the Claude agent to generate insights."""
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        logger.warning("ANTHROPIC_API_KEY not set – skipping agent insight generation")
-        _seed_fallback_insight(db)
-        return
-
+    """Run the Claude Code CLI agent to generate insights."""
     try:
-        agent = RealEstateAgent(anthropic_api_key=api_key)
-        data = await agent.run()
+        data = await _agent_run()
 
         if not data:
+            logger.warning("Agent returned no data, using fallback insight")
             _seed_fallback_insight(db)
             return
 
@@ -278,15 +272,24 @@ async def run_agent(db: Session):
                 existing.demand_level = loc_data.get("demand_level", "Medium")
                 existing.avg_price_2bhk_lakhs = loc_data.get("avg_price_2bhk_lakhs")
                 existing.avg_price_3bhk_lakhs = loc_data.get("avg_price_3bhk_lakhs")
+                existing.listing_count = loc_data.get("listing_count", existing.listing_count)
+                existing.min_price_per_sqft = loc_data.get("min_price_per_sqft", existing.min_price_per_sqft)
+                existing.max_price_per_sqft = loc_data.get("max_price_per_sqft", existing.max_price_per_sqft)
             else:
                 db.add(LocalityPrice(
                     name=loc_data["name"],
                     avg_price_per_sqft=loc_data.get("avg_price_per_sqft", 0),
+                    min_price_per_sqft=loc_data.get("min_price_per_sqft"),
+                    max_price_per_sqft=loc_data.get("max_price_per_sqft"),
                     yoy_change_pct=loc_data.get("yoy_change_pct", 0),
                     demand_level=loc_data.get("demand_level", "Medium"),
                     avg_price_2bhk_lakhs=loc_data.get("avg_price_2bhk_lakhs"),
                     avg_price_3bhk_lakhs=loc_data.get("avg_price_3bhk_lakhs"),
+                    listing_count=loc_data.get("listing_count", 0),
                 ))
+
+        # Rebuild trends from agent data so charts reflect Claude's analysis
+        _rebuild_trend_data(db, localities)
 
         summary = data.get("market_summary", {})
         db.add(MarketInsight(
@@ -298,11 +301,39 @@ async def run_agent(db: Session):
             yoy_change_pct=summary.get("yoy_change_pct", 0),
         ))
         db.commit()
-        logger.info("Agent data saved successfully")
+        logger.info(f"Agent saved {len(localities)} localities + market insight")
 
     except Exception as e:
         logger.error(f"Agent run failed: {e}")
         _seed_fallback_insight(db)
+
+
+def _rebuild_trend_data(db: Session, localities: list):
+    """Replace trend data using agent-supplied current prices as the latest month."""
+    if not localities:
+        return
+    import random
+    random.seed(99)
+    now = datetime.utcnow()
+    db.query(PriceTrend).delete()
+    for loc in localities:
+        current_psf = loc.get("avg_price_per_sqft", 0)
+        if not current_psf:
+            continue
+        yoy = loc.get("yoy_change_pct", 10.0) / 100
+        monthly_growth = (1 + yoy) ** (1 / 12)
+        for months_ago in range(11, -1, -1):
+            month_dt = now - timedelta(days=months_ago * 30)
+            month_str = month_dt.strftime("%Y-%m")
+            # Back-calculate price for each historical month
+            price = round(current_psf / (monthly_growth ** months_ago), 0)
+            noise = random.uniform(0.98, 1.02)
+            db.add(PriceTrend(
+                locality=loc["name"],
+                month=month_str,
+                avg_price_per_sqft=round(price * noise, 0),
+            ))
+    db.commit()
 
 
 def _seed_fallback_insight(db: Session):
