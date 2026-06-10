@@ -40,3 +40,11 @@ PgVector • Pinecone • Weaviate
 - LinkedIn: 
 - Email: kumar.grani@gmail.com
 
+---
+
+## Projects
+
+### Hyderabad Real Estate Intelligence Agent
+
+See [realtor-agent/README.md](realtor-agent/README.md) — an AI-powered dashboard that scrapes 5 real estate portals, runs a Claude agent for market analysis, and displays price trends, locality maps, and investment insights.
+
